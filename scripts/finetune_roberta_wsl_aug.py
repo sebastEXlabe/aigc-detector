@@ -45,8 +45,8 @@ class TextDS(TDataset):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--max-ai", type=int, default=10000)
-    ap.add_argument("--max-human", type=int, default=30000)
+    ap.add_argument("--max-ai", type=int, default=16000)
+    ap.add_argument("--max-human", type=int, default=38400)
     ap.add_argument("--epochs", type=int, default=3)
     a = ap.parse_args()
     random.seed(42); np.random.seed(42)
@@ -65,12 +65,12 @@ def main():
     hc3 = [r["text"] for r in pub_ai if r.get("source")=="HC3" and r.get("lang","zh")=="zh"]
     m4zh = [r["text"] for r in pub_ai if r.get("source")=="M4-zh-qa"]
     random.shuffle(cred); random.shuffle(hc3); random.shuffle(m4zh)
-    ai.extend(cred[:4000])     # 中文学术论文（核心）
-    ai.extend(hc3[:2500])      # 中文问答
-    ai.extend(m4zh[:800])      # 中文百科问答
+    ai.extend(cred[:10000])    # 中文学术论文（覆盖全部 8 个 C-ReD 生成器，提升 OOD 泛化）
+    ai.extend(hc3[:4500])      # 中文问答
+    ai.extend(m4zh[:1500])     # 中文百科问答
     if len(ai) > a.max_ai:
         random.shuffle(ai); ai = ai[:a.max_ai]
-    print("AI:", len(ai), "(base=%d cred=%d hc3=%d m4zh=%d)" % (len(base_ai), min(len(cred),4000), min(len(hc3),2500), min(len(m4zh),800)))
+    print("AI:", len(ai), "(base=%d cred=%d hc3=%d m4zh=%d)" % (len(base_ai), min(len(cred),10000), min(len(hc3),4500), min(len(m4zh),1500)))
 
     # 2. human 负样本
     human = []

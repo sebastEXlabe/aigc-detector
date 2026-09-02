@@ -1,7 +1,7 @@
 #!/bin/bash
 # WSL 深流重训脚本（方案2）。把输出写到日志（避免 utf-16 编码问题），日志在 Windows 侧可读。
 set -u
-LOG=/mnt/c/Users/woshi/.dsh/aigc-detector/logs/deep_retrain.log
+LOG=/mnt/c/Users/woshi/.dsh/aigc-detector/logs/deep_retrain2.log
 echo "==== 深流重训启动 $(date) ====" > $LOG
 # 激活 venv
 . /home/sebast/aigcenv/bin/activate 2>>$LOG || { echo "venv 激活失败" >>$LOG; exit 1; }
