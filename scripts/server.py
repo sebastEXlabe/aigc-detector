@@ -6,7 +6,7 @@
 运行：python server.py [--host 127.0.0.1] [--port 9000]
 """
 import os, sys, io, json, re, pickle, subprocess, threading, time, datetime
-sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
+# 不在顶层重定向 stdout（避免 import 时污染 pytest 等外部 capture）；日志用 print(flush=True) 即可
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 import uvicorn

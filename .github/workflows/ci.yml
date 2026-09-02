@@ -25,16 +25,15 @@ jobs:
           path: ~/.cache/pip
           key: pip-${{ runner.os }}-3.12
 
-      - name: Install torch (CPU) + deps
+      - name: Install torch (CPU) + deps + test libs
         run: |
           pip install --upgrade pip
-          # torch CPU 版（无 CUDA，下载快）；deepseek 深度流需要 torch + transformers
           pip install torch --index-url https://download.pytorch.org/whl/cpu
-          pip install transformers numpy scikit-learn jieba beautifulsoup4 python-docx
+          pip install transformers numpy scikit-learn jieba beautifulsoup4 python-docx fastapi uvicorn httpx pytest requests
 
-      - name: Run smoke tests
+      - name: Run full CI test suite
         run: |
-          python tests/test_smoke.py
+          python -m pytest tests/ -v
 
       - name: Syntax check all python files
         run: |
