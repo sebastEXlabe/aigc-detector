@@ -53,7 +53,11 @@ def main():
 
     # 1. AI 样本
     ai = []
-    base_ai = [r["text"] for r in read_list(os.path.join(DATA,"train_unified.jsonl")) if r.get("text") and r.get("prob",0.5)>=0.4]
+    TU = os.path.join(DATA,"train_unified.jsonl")
+    _guard = os.path.join(DATA,"train_unified_guarded.jsonl")
+    if os.path.exists(_guard):
+        TU = _guard  # 优先用深流守卫后的干净标签，避免"未检出→human"污染
+    base_ai = [r["text"] for r in read_list(TU) if r.get("text") and r.get("prob",0.5)>=0.4]
     ai.extend(base_ai)
     # 公开中文学术 AI：C-ReD paper(论文文体) + HC3(问答) + M4-zh-qa
     pub_ai = read_list(os.path.join(DATA,"ai_pub_samples.jsonl"))
@@ -73,7 +77,7 @@ def main():
     for r in read_list(os.path.join(DATA,"human_cnki.jsonl")): human.append(r.get("text",""))
     for r in read_list(os.path.join(DATA,"human_positive.jsonl")): human.append(r.get("text",""))
     for r in read_list(os.path.join(DATA,"human_self_train.jsonl")): human.append(r.get("text",""))  # 自训练高置信真人句
-    for r in read_list(os.path.join(DATA,"train_unified.jsonl")):
+    for r in read_list(TU):
         if r.get("text") and r.get("prob",0.5)<0.4: human.append(r["text"])
     # 过滤空/短句
     human = [t for t in human if t and zh_len(t) >= 6]
