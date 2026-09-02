@@ -4,7 +4,6 @@
 report/
 reports/
 logs/
-models/roberta_ft/
 
 # ---- 运行时状态文件 ----
 service.pid
@@ -28,3 +27,4 @@ tmp/
 *.tmp
 *.log
 reports_manifest.json
+
