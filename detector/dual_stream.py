@@ -27,17 +27,17 @@ def load_bert(device="cuda"):
     except Exception:
         return None
 
-def bert_score_per_sentence(tok, model, dev, sentences, batch=32, max_len=200):
+def bert_score_per_sentence(tok, model, dev, sentences, batch=64, max_len=200):
     """逐句AI概率，GPU内存安全（动态batch + 及时释放）。
     - 遍历处理，每个句子先估算 token 数，长句自动缩小 batch，避免 OOM。
-    - 每批后释放 GPU 缓存。
+    - 每批后释放 GPU 缓存。batch 提至 64 + inference_mode 提速。
     """
     import torch
     import torch.nn.functional as F
     if tok is None: return None
     probs = []
     i = 0
-    with torch.no_grad():
+    with torch.inference_mode():
         while i < len(sentences):
             # 估算当前 batch 的 token 量，超长句时缩小 batch
             chunk = sentences[i:i+batch]

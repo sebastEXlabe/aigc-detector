@@ -257,9 +257,10 @@ def detect_pipeline(text, top_k=20):
     # 方向2：AI 密集段识别——在"原始融合分"上找窗口平均>=0.9 的连续 AI 段（识别 AI 局部掺入，
     # 如 AI 摘要+真人正文；此时 doc 平均被稀释到低分，但窗口平均仍高）
     ai_island_win = 0.0
+    ai_island_start = -1
     try:
         from detector.consistency import max_ai_window_mean
-        ai_island_win, _ = max_ai_window_mean(np.array(fused, dtype=float), window=6)
+        ai_island_win, ai_island_start = max_ai_window_mean(np.array(fused, dtype=float), window=6)
     except Exception:
         pass
     # 方向1：文档门控两遍校准——整篇作为一篇文档，若整体偏真人则向下软化孤立高AI句（抑制真实论文句级误标）
@@ -281,10 +282,6 @@ def detect_pipeline(text, top_k=20):
     elif overall >= 0.35: state_l = "疑似AI（建议人工复核）"
     elif overall >= 0.2: state_l = "证据不足（倾向人类，存在少量AI痕迹）"
     else: state_l = "基本人类撰写"
-    if overall >= 0.5: state_l = "高度疑似AI生成"
-    elif overall >= 0.35: state_l = "疑似AI（建议人工复核）"
-    elif overall >= 0.2: state_l = "证据不足（倾向人类，存在少量AI痕迹）"
-    else: state_l = "基本人类撰写"
     hi = []
     # 命中模板的句子（无论是否AI，都记录，便于人工判断）
     templated = []
@@ -297,7 +294,18 @@ def detect_pipeline(text, top_k=20):
         for i in idxs:
             if fused[i] >= thr:
                 hits = [d for pat, w, d in TEMPLATE_PATTERNS_ZH if re.search(pat, sents[i])]
-                hi.append({"sentence": sents[i][:200], "ai_prob": round(fused[i], 4), "templates": hits})
+                # 诊断：统计/深流各自分 + 是否孤立(邻域人类)+ 是否在AI密集段内
+                nb = fused[max(0,i-2):i+3]
+                nb_mean = round(sum(nb)/max(len(nb),1), 4)
+                statp = round(p_tf[i], 4) if p_tf else None
+                bertp = round(p_bert[i], 4) if p_bert else None
+                in_island = 0 <= ai_island_start and ai_island_start <= i < ai_island_start+6
+                isolated = nb_mean < 0.35  # 邻域都低=孤立高AI句(更可能字面误标)
+                hi.append({
+                    "sentence": sents[i][:200], "ai_prob": round(fused[i], 4), "templates": hits,
+                    "stat_prob": statp, "bert_prob": bertp,
+                    "neighborhood_mean": nb_mean, "in_ai_island": in_island, "isolated": isolated,
+                })
                 detail.append((i, sents[i], fused[i], hits))
         for i, s in enumerate(sents):
             hits = [d for pat, w, d in TEMPLATE_PATTERNS_ZH if re.search(pat, s)]
