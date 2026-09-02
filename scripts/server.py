@@ -254,6 +254,13 @@ def detect_pipeline(text, top_k=20):
         fused = [fuse(a, b) for a, b in zip(p_tf or [0]*len(sents), p_bert)]
     else:
         fused = p_tf
+    # 方向1：文档门控两遍校准——整篇作为一篇文档，若整体偏真人则向下软化孤立高AI句（抑制真实论文句级误标）
+    try:
+        from detector.consistency import gated_doc_calibrate
+        fused, _ = gated_doc_calibrate(np.array(fused), [0]*len(sents))
+        fused = fused.tolist()
+    except Exception:
+        pass
     overall = doc_score(sents, fused) if fused else 0.0
     thr = stat.get("threshold", 0.5) if stat else 0.5
     # 成本敏感：用校准后的保守阈值判 AI 句（降低对真实学术句的误判）

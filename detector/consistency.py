@@ -47,3 +47,33 @@ def document_calibrate(sent_probs, doc_ids):
 
 def doc_mean(sent_probs):
     return _doc_mean(list(sent_probs))
+
+# ---- 方向1：文档门控两遍校准 ----
+# 只在"文档明显偏真人"时向下软化孤立的高AI句（真实论文里的字面误标）；
+# 偏AI/混杂文档不软化，保住检出。修正上一版"对混杂报告无差别拉平"的缺陷。
+HUMAN_DOC_GATE = 0.35     # doc 均值 < 此值 → 判为偏真人文档，允许向下软化
+SOFTEN_ALPHA_MAX = 0.45   # 偏真人文档里，句级向文档均值靠拢的最大权重
+
+def gated_doc_calibrate(sent_probs, doc_ids):
+    """返回 (新句级概率, 是否应用了软化)。
+    对 doc 均值 < HUMAN_DOC_GATE 的文档：把孤立高AI句向文档均值靠拢(抑制误标)；
+    其余文档：保持不变。
+    """
+    sent_probs = np.asarray(sent_probs, dtype=float)
+    doc_ids = np.asarray(doc_ids)
+    out = sent_probs.copy()
+    applied = {}
+    for d in np.unique(doc_ids):
+        mask = doc_ids == d
+        group = sent_probs[mask]
+        docm = _doc_mean(group)
+        if docm < HUMAN_DOC_GATE:
+            # 偏真人文档：向下软化高AI句（仅对 > docm 的句子，抑制孤立误标）
+            alpha = _alpha(docm) * SOFTEN_ALPHA_MAX / 0.35
+            alpha = min(0.45, alpha)
+            for i in np.where(mask)[0]:
+                s = sent_probs[i]
+                if s > docm:
+                    out[i] = alpha * docm + (1 - alpha) * s
+            applied[d] = True
+    return out, applied
