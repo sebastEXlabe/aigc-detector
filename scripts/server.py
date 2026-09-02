@@ -220,6 +220,9 @@ def text_lang(text):
     return "zh" if zh >= en else "en"
 
 def detect_pipeline(text, top_k=20):
+    # 成本敏感阈值（第一性原理：冤枉真论文代价 > 漏检AI；实测定真实CNKI误报0.021/检出0.962，
+    # 相比模型自带阈值0.345的误报0.054大幅压误报）。0.5为平衡点；排成0.69则误报仅0.004/检出0.858。
+    COST_SENSITIVE_THRESHOLD = 0.5
     t0 = time.time()
     lang = text_lang(text)
     # 按语言选分句器：中文用字符级扫描（处理引号内句号等），英文用句号边界（处理缩写/小数）
@@ -253,6 +256,8 @@ def detect_pipeline(text, top_k=20):
         fused = p_tf
     overall = doc_score(sents, fused) if fused else 0.0
     thr = stat.get("threshold", 0.5) if stat else 0.5
+    # 成本敏感：用校准后的保守阈值判 AI 句（降低对真实学术句的误判）
+    thr = COST_SENSITIVE_THRESHOLD
     ai_count = sum(1 for p in fused if p >= thr) if fused else 0
     if overall >= 0.5: state_l = "高度疑似AI生成"
     elif overall >= 0.35: state_l = "疑似AI（建议人工复核）"
