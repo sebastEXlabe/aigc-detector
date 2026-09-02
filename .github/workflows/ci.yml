@@ -11,6 +11,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          lfs: true
 
       - name: Set up Python 3.12
         uses: actions/setup-python@v5
@@ -23,10 +25,12 @@ jobs:
           path: ~/.cache/pip
           key: pip-${{ runner.os }}-3.12
 
-      - name: Install test deps
+      - name: Install torch (CPU) + deps
         run: |
           pip install --upgrade pip
-          pip install numpy scikit-learn jieba beautifulsoup4 python-docx
+          # torch CPU 版（无 CUDA，下载快）；deepseek 深度流需要 torch + transformers
+          pip install torch --index-url https://download.pytorch.org/whl/cpu
+          pip install transformers numpy scikit-learn jieba beautifulsoup4 python-docx
 
       - name: Run smoke tests
         run: |
