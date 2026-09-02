@@ -5,6 +5,11 @@ report/
 reports/
 logs/
 
+# ---- 数据集（标注/原始/构建产物，可重新生成，不上传）----
+data/datasets_raw/
+data/ai_pub_samples.jsonl
+data/human_pub_samples.jsonl
+
 # ---- 运行时状态文件 ----
 service.pid
 last_port.txt

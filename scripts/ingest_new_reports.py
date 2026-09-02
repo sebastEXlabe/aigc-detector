@@ -264,7 +264,7 @@ def main():
         meta = extract_report_meta(c["src"])
         info = f"  [入库] 报告: {meta.get('file','')[-45:]} | 平台={meta.get('platform')} | " \
                f"AI特征值={meta.get('ai_rate')}% | 总字符={meta.get('total_chars')} | " \
-               f"报告编号={meta.get('report_no')} | 篇名={meta.get('title','')[:30]} | 新增句={c['n']}"
+               f"报告编号={meta.get('report_no')} | 篇名={(meta.get('title') or '')[:30]} | 新增句={c['n']}"
         print(info)
     print("扫描完成。新增句级标注:", len(new_anns), " 涉及报告:", len(copied))
     if new_anns and len(new_anns) >= threshold:

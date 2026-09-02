@@ -36,7 +36,7 @@ async def global_exc_handler(request, exc):
         pass
     return JSONResponse({"error": f"内部错误: {type(exc).__name__}"}, status_code=500)
 
-STATE = {"stat": None, "bert": None, "lm": None, "model_meta": None, "ready": False}
+STATE = {"stat": None, "stat_en": None, "bert": None, "lm": None, "model_meta": None, "ready": False}
 TRAIN_LOCK = threading.Lock()   # 重训互斥锁，防止 /ingest 与 /train 并发重训
 TRAIN_RUNNING = False
 
@@ -65,6 +65,15 @@ def load_models():
         log(f"  统计流 TF-IDF 加载 ✓  acc={STATE['stat'].get('acc'):.3f} auc={STATE['stat'].get('auc'):.3f}")
     else:
         log("  统计流 缺失 ✗")
+    # 英文统计流分类器（独立词表），供英文文本路由
+    STATE["stat_en"] = None
+    p_en = os.path.join(BASE, "models", "classifier_en.pkl")
+    if os.path.exists(p_en):
+        with open(p_en, "rb") as f:
+            STATE["stat_en"] = pickle.load(f)
+        log(f"  英文统计流 加载 ✓  acc={STATE['stat_en'].get('acc'):.3f} auc={STATE['stat_en'].get('auc'):.3f}")
+    else:
+        log("  英文统计流 缺失 ✗（英文文本将用中文统计流退化）")
     p_lm = os.path.join(BASE, "models", "n-gram-lm.pkl")
     if os.path.exists(p_lm):
         with open(p_lm, "rb") as f:
@@ -188,12 +197,43 @@ def split_sentences(text):
     return out
 
 # ---- 端到端检测 ----
+def split_sentences_en(text):
+    """英文分句：按句号+空格/换行切分，保护缩写(如 e.g./et al.)、小数、版本号避免误切。"""
+    proto = re.sub(r"\b(e\.g\.|i\.e\.|et al\.|Dr\.|Mr\.|Ms\.|Fig\.|Eq\.|vs\.|etc\.|Inc\.|Ltd\.|cf\.)\b",
+                   lambda m: m.group(0).replace(".", "\u0001"), text)
+    proto = re.sub(r"(\d\.\d)", lambda m: m.group(1).replace(".", "\u0002"), proto)
+    parts = re.split(r"(?<=\.)\s+|\n+", proto)
+    out = []
+    for p in parts:
+        p = p.replace("\u0001", ".").replace("\u0002", ".").strip()
+        p = re.sub(r"\s+", " ", p).strip()
+        if p and len(p.split()) >= 5:
+            out.append(p)
+    return out
+
+def text_lang(text):
+    """判定文本主语言：'zh'(中文) / 'en'(英文)。英文=拉丁字母数>中文字数。"""
+    zh = len(re.findall(r"[\u4e00-\u9fff]", text))
+    en = len(re.findall(r"[A-Za-z]", text))
+    if zh == 0 and en > 0:
+        return "en"
+    return "zh" if zh >= en else "en"
+
 def detect_pipeline(text, top_k=20):
     t0 = time.time()
-    sents = split_sentences(text)
+    lang = text_lang(text)
+    # 按语言选分句器：中文用字符级扫描（处理引号内句号等），英文用句号边界（处理缩写/小数）
+    sents = split_sentences_en(text) if lang == "en" else split_sentences(text)
     if not sents:
         return {"error": "无可检测句子"}
-    stat = STATE["stat"]
+    # 语言路由：英文用独立英文统计流；中文用中文统计流。
+    # 深流(中文RoBERTa)对英文文本无效，英文时跳过深流。
+    if lang == "en":
+        stat = STATE.get("stat_en") or STATE.get("stat")   # 英文优先英文分类器，缺失则退化中文
+        use_en = STATE.get("stat_en") is not None
+    else:
+        stat = STATE.get("stat")
+        use_en = False
     p_tf = None; t_tf = None; t_bert = None
     if stat:
         t_tf = time.time()
@@ -201,7 +241,8 @@ def detect_pipeline(text, top_k=20):
         p_tf = stat["model"].predict_proba(X)[:, 1].tolist()
         t_tf = time.time() - t_tf
     p_bert = None
-    if STATE["bert"]:
+    # 深度流仅中文文本参与；英文文本纯统计流
+    if STATE["bert"] and not use_en:
         t_bert = time.time()
         tok, model, dev = STATE["bert"]
         p_bert = bert_score_per_sentence(tok, model, dev, sents)
@@ -236,7 +277,7 @@ def detect_pipeline(text, top_k=20):
             if hits:
                 templated.append({"sentence": s[:120], "templates": hits})
     # 详细日志
-    log(f"  [检测] 句数={len(sents)} 总耗时={time.time()-t0:.2f}s (统计流{t_tf:.2f}s 深流{t_bert:.2f}s) 统计流均值={stat_avg} 深流均值={bert_avg} 融合={overall:.3f} AI句={ai_count} → {state_l}")
+    log(f"  [检测] 句数={len(sents)} 总耗时={time.time()-t0:.2f}s (统计流{(t_tf or 0):.2f}s 深流{(t_bert or 0):.2f}s) 统计流均值={stat_avg} 深流均值={bert_avg} 融合={overall:.3f} AI句={ai_count} → {state_l}")
     if detail:
         for i, s, p, hits in detail:
             log(f"    · 高AI句[{p:.2f}] {s[:60]}" + (f" 模板:{hits}" if hits else ""))
@@ -260,7 +301,7 @@ def detect_pipeline(text, top_k=20):
         "bert_prob": bert_avg,
         "n_sentences": len(sents),                    # 对应报告"句子数"
         "total_chars": total_chars,                   # 对应报告"总字符数"
-        "ai_chars": int(sum(len(s) for s, p in zip(sents, fused) if p >= thr)),  # 对应报告"AI特征字符数"
+        "ai_chars": int(sum(len(s) for s, p in zip(sents, fused or []) if p >= thr)),  # 对应报告"AI特征字符数"
         "ai_sentence_count": ai_count,
         "state": state_l,
         "verdict": verdict,                            # 报告参数对比：档位判定
@@ -271,7 +312,7 @@ def detect_pipeline(text, top_k=20):
 @app.get("/health")
 def health():
     log("  [健康检查] 请求")
-    return {"ready": STATE["ready"], "stat": bool(STATE["stat"]), "bert": bool(STATE["bert"]), "model_meta": STATE["model_meta"]}
+    return {"ready": STATE["ready"], "stat": bool(STATE["stat"]), "stat_en": bool(STATE.get("stat_en")), "bert": bool(STATE["bert"]), "model_meta": STATE["model_meta"]}
 
 @app.post("/detect")
 async def detect(req: Request):
@@ -441,6 +482,17 @@ def auto_retrain():
                 STATE["stat"] = pickle.load(f)
             STATE["model_meta"] = {"acc": STATE["stat"].get("acc"), "auc": STATE["stat"].get("auc"), "threshold": STATE["stat"].get("threshold")}
             log(f">>> [重训] ✓ 完成并热更新: acc={STATE['model_meta']['acc']:.3f} auc={STATE['model_meta']['auc']:.3f}")
+            # 重训英文统计流分类器并热更新
+            p_en_script = os.path.join(SCRIPTS, "train_classifier_en.py")
+            if os.path.exists(p_en_script):
+                ren = subprocess.run([sys.executable, p_en_script], capture_output=True, text=True, timeout=600)
+                if ren.returncode == 0:
+                    p_en = os.path.join(BASE, "models", "classifier_en.pkl")
+                    with open(p_en, "rb") as f:
+                        STATE["stat_en"] = pickle.load(f)
+                    log(f">>> [重训] ✓ 英文统计流热更新: auc={STATE['stat_en'].get('auc'):.3f}")
+                else:
+                    log(f">>> [重训] ✗ 英文统计流失败: {ren.stderr[-150:]}")
             # 重训深流（WSL），若可用
             if os.path.exists(r"C:\Users\woshi\.dsh\aigc-detector\scripts\finetune_roberta_wsl.py"):
                 log(">>> [重训] 请求WSL重训深度流...")
