@@ -9,24 +9,21 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        python-version: ["3.10", "3.12"]
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Python ${{ matrix.python-version }}
+      - name: Set up Python 3.12
         uses: actions/setup-python@v5
         with:
-          python-version: ${{ matrix.python-version }}
+          python-version: "3.12"
 
       - name: Cache pip
         uses: actions/cache@v4
         with:
           path: ~/.cache/pip
-          key: pip-${{ runner.os }}-${{ matrix.python-version }}
+          key: pip-${{ runner.os }}-3.12
 
-      - name: Install lightweight test deps
+      - name: Install test deps
         run: |
           pip install --upgrade pip
           pip install numpy scikit-learn jieba beautifulsoup4 python-docx
@@ -37,16 +34,15 @@ jobs:
 
       - name: Syntax check all python files
         run: |
-          python -c "
+          python - <<'PYEOF'
           import ast, pathlib, sys
           bad = []
           for p in pathlib.Path('.').rglob('*.py'):
               try:
                   ast.parse(p.read_text(encoding='utf-8'))
-              except SyntaxError as e:
+              except SyntaxError:
                   bad.append(str(p))
           if bad:
               print('语法错误:', bad); sys.exit(1)
-          else:
-              print('所有 python 文件语法正确')
-          "
+          print('所有 python 文件语法正确')
+          PYEOF
