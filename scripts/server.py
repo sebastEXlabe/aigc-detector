@@ -65,6 +65,16 @@ def load_models():
         log(f"  统计流 TF-IDF 加载 ✓  acc={STATE['stat'].get('acc'):.3f} auc={STATE['stat'].get('auc'):.3f}")
     else:
         log("  统计流 缺失 ✗")
+    # isotonic 校准（方向3）：把融合概率校正为更可靠概率（Brier 0.044->0.025, 中段过偏AI矫正）
+    STATE["iso"] = None
+    _iso_p = os.path.join(BASE, "models", "isotonic.pkl")
+    if os.path.exists(_iso_p):
+        try:
+            with open(_iso_p, "rb") as f:
+                STATE["iso"] = pickle.load(f)
+            log("  isotonic 校准 加载 ✓")
+        except Exception as e:
+            log(f"  isotonic 加载失败: {e}")
     # 英文统计流分类器（独立词表），供英文文本路由
     STATE["stat_en"] = None
     p_en = os.path.join(BASE, "models", "classifier_en.pkl")
@@ -254,6 +264,15 @@ def detect_pipeline(text, top_k=20):
         fused = [fuse(a, b) for a, b in zip(p_tf or [0]*len(sents), p_bert)]
     else:
         fused = p_tf
+    # 方向3：isotonic 校准——把融合概率校正为更可靠概率（修中段过偏AI），
+    # 保留原始 fused 用于 AI 密集段识别（其阈值基于原始分布校准）
+    fused_cal = fused
+    iso = STATE.get("iso")
+    if iso is not None:
+        try:
+            fused_cal = iso.predict(np.array(fused, dtype=float)).tolist()
+        except Exception:
+            pass
     # 方向2：AI 密集段识别——在"原始融合分"上找窗口平均>=0.9 的连续 AI 段（识别 AI 局部掺入，
     # 如 AI 摘要+真人正文；此时 doc 平均被稀释到低分，但窗口平均仍高）
     ai_island_win = 0.0
@@ -266,10 +285,10 @@ def detect_pipeline(text, top_k=20):
     # 方向1：文档门控两遍校准——整篇作为一篇文档，若整体偏真人则向下软化孤立高AI句（抑制真实论文句级误标）
     try:
         from detector.consistency import gated_doc_calibrate
-        fused, _ = gated_doc_calibrate(np.array(fused), [0]*len(sents))
+        fused, _ = gated_doc_calibrate(np.array(fused_cal, dtype=float), [0]*len(sents))
         fused = fused.tolist()
     except Exception:
-        pass
+        fused = fused_cal
     overall = doc_score(sents, fused) if fused else 0.0
     thr = stat.get("threshold", 0.5) if stat else 0.5
     # 成本敏感：用校准后的保守阈值判 AI 句（降低对真实学术句的误判）

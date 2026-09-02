@@ -45,13 +45,17 @@ def quality_check(path, threshold=0.35):
     print(f"  稿件: {os.path.basename(path)}")
     print(f"  AI概率: {overall*100:.1f}%  |  判定: {state}  |  报告档位: {verdict}")
     print(f"  总字数: {result.get('total_chars')}  AI字符: {result.get('ai_chars')}  句子: {result.get('n_sentences')}")
-    # 高风险段落
+    # 高风险段落（含可解释诊断：isolated=孤立句更可能是字面误标；in_ai_island=在AI密集段内=强证据）
     hi = result.get("top_ai_sentences", [])
     if hi:
         print(f"\n  高风险段落 / 命中模板:")
         for h in hi:
             tpls = h.get('templates', [])
-            print(f"    [{h.get('ai_prob',0)*100:.0f}%] {h.get('sentence','')[:50]}" + (f"\n       模板: {tpls}" if tpls else ""))
+            diag = []
+            if h.get('in_ai_island'): diag.append("AI密集段内(强证据)")
+            if h.get('isolated'): diag.append("孤立句(疑字面误标,可复核)")
+            st = f"  分类 {''.join(diag) or '普通'}"
+            print(f"    [{h.get('ai_prob',0)*100:.0f}%] {h.get('sentence','')[:50]}" + (f"\n       模板: {tpls}" if tpls else "") + (f"\n       {st}" if diag else ""))
     # 判定
     if overall >= threshold:
         print(f"\n  ⚠️ 质检不通过：AI概率 {overall*100:.1f}% > 阈值 {threshold*100:.0f}%")
