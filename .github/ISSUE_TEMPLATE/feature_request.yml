@@ -1,0 +1,27 @@
+---
+name: Feature request (功能请求)
+description: 提出新功能或增强建议
+title: "[FEATURE] "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: need
+    attributes:
+      label: 这个功能解决什么问题
+      description: 你遇到了什么场景/痛点？
+    validations:
+      required: true
+  - type: textarea
+    id: solution
+    attributes:
+      label: 期望的解决方案
+      description: 你希望它如何工作？
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: 备选方案
+      description: 有没有其他可行的做法？
+  - type: markdown
+    attributes:
+      value: |
+        项目偏好：本地运行、可解释、无付费 API、尊重隐私（详见 CONTRIBUTING.md）。

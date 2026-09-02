@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 项目主页
+    url: https://github.com/sebastEXlabe/aigc-detector
+    about: AIGC 检测工具仓库

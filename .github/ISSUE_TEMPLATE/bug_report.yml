@@ -1,0 +1,44 @@
+---
+name: Bug report (BUG 报告)
+description: 报告 AIGC 检测工具使用中遇到的 BUG
+title: "[BUG] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        感谢提交 BUG。请描述你使用 AIGC 检测服务时遇到的问题。
+  - type: textarea
+    id: description
+    attributes:
+      label: BUG 描述
+      description: 发生了什么？期望是什么？实际是什么？
+      placeholder: "例：/detect 传入超长文本时，深度流加载卡住导致服务不可用"
+    validations:
+      required: true
+  - type: input
+    id: scene
+    attributes:
+      label: 触发场景 (scene)
+      placeholder: "detect / ingest / batch_detect / train / report_bug"
+  - type: dropdown
+    id: severity
+    attributes:
+      label: 严重度
+      options:
+        - high (阻断/数据错误)
+        - med (功能异常)
+        - low (体验/边角)
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: 复现步骤
+      placeholder: |
+        1. 调用 xxx
+        2. 传入 xxx
+        3. 观察到 xxx
+  - type: textarea
+    id: logs
+    attributes:
+      label: 相关日志/报错
+      render: shell

@@ -1,0 +1,16 @@
+# AIGC Detector - 核心依赖（必装）
+# 完整检测服务（含深度流）需要 GPU（CUDA）运行 torch
+fastapi>=0.110
+uvicorn>=0.29
+python-docx>=1.1
+pymupdf>=1.24
+beautifulsoup4>=4.12
+scikit-learn>=1.4
+jieba>=0.42
+requests>=2.31
+numpy>=1.26
+
+# 深度流（中文RoBERTa）可选——需 GPU，建议单独装 CUDA 版 torch
+# torch>=2.6
+# transformers>=4.48
+# datasets>=2.20
