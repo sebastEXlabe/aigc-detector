@@ -1,4 +1,4 @@
-﻿# 本地 AIGC 检测工具（aigc-detector）
+# 本地 AIGC 检测工具（aigc-detector）
 
 ## 工具路径
 `C:\Users\woshi\.dsh\aigc-detector`

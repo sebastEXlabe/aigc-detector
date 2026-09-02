@@ -1,4 +1,4 @@
-﻿# -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 """WSL 重新微调中文RoBERTa（用 cnki 文献库增强人类负样本，降低真实论文误判）。
 数据：AI(train_unified prob>=0.4) + human(cnki文献库增强 + real_thesis + train_unified human)，平衡后训练。
 模型：Hello-SimpleAI/chatgpt-detector-roberta-chinese 迁移

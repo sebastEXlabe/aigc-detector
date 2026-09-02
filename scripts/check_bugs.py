@@ -1,4 +1,4 @@
-﻿# -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 """AIGC 检测工具 BUG 定期检测脚本。
 扫描 bug_tracker.jsonl，统计 open bug（按严重度/场景），输出待修复清单。
 用法：python check_bugs.py [--all]   (--all 含已修复)

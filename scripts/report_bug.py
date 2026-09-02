@@ -1,4 +1,4 @@
-﻿# -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 """AIGC 检测工具 BUG 上报脚本。
 智能体在使用检测工具过程中发现 BUG，调用本脚本写入 bug_tracker.jsonl 统计文件。
 用法：python report_bug.py "描述" [--severity high|med|low] [--scene 场景]

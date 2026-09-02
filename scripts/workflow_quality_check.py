@@ -1,4 +1,4 @@
-﻿# -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 """写作流程自动质检：稿件写完后自动调用 AIGC 检测服务做质检。
 用法：python workflow_quality_check.py <稿件.docx|txt> [--threshold 0.35]
    - 调用本地 AIGC 服务 /detect 检测
