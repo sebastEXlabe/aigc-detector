@@ -254,6 +254,14 @@ def detect_pipeline(text, top_k=20):
         fused = [fuse(a, b) for a, b in zip(p_tf or [0]*len(sents), p_bert)]
     else:
         fused = p_tf
+    # 方向2：AI 密集段识别——在"原始融合分"上找窗口平均>=0.9 的连续 AI 段（识别 AI 局部掺入，
+    # 如 AI 摘要+真人正文；此时 doc 平均被稀释到低分，但窗口平均仍高）
+    ai_island_win = 0.0
+    try:
+        from detector.consistency import max_ai_window_mean
+        ai_island_win, _ = max_ai_window_mean(np.array(fused, dtype=float), window=6)
+    except Exception:
+        pass
     # 方向1：文档门控两遍校准——整篇作为一篇文档，若整体偏真人则向下软化孤立高AI句（抑制真实论文句级误标）
     try:
         from detector.consistency import gated_doc_calibrate
@@ -266,6 +274,13 @@ def detect_pipeline(text, top_k=20):
     # 成本敏感：用校准后的保守阈值判 AI 句（降低对真实学术句的误判）
     thr = COST_SENSITIVE_THRESHOLD
     ai_count = sum(1 for p in fused if p >= thr) if fused else 0
+    # 判定：文档整体高 或 存在 AI 密集段（含被稀释的 AI 局部掺入）
+    ai_island = ai_island_win >= 0.9
+    if overall >= 0.5: state_l = "高度疑似AI生成"
+    elif ai_island: state_l = "疑似AI（存在AI密集段，建议人工复核）"
+    elif overall >= 0.35: state_l = "疑似AI（建议人工复核）"
+    elif overall >= 0.2: state_l = "证据不足（倾向人类，存在少量AI痕迹）"
+    else: state_l = "基本人类撰写"
     if overall >= 0.5: state_l = "高度疑似AI生成"
     elif overall >= 0.35: state_l = "疑似AI（建议人工复核）"
     elif overall >= 0.2: state_l = "证据不足（倾向人类，存在少量AI痕迹）"

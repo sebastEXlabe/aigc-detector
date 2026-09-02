@@ -77,3 +77,35 @@ def gated_doc_calibrate(sent_probs, doc_ids):
                     out[i] = alpha * docm + (1 - alpha) * s
             applied[d] = True
     return out, applied
+
+# ---- 方向2：AI 密集段识别（解决"AI局部掺入被稀释"盲区）----
+def max_ai_window(scores, thr=0.5, window=6):
+    """滑动窗口内句级>=thr的最大占比。文档整体低分但某段高AI(如AI摘要)时该值高。
+    返回 (max_proportion, 窗口起始索引, 命中窗口句列表)。"""
+    scores = np.asarray(scores, dtype=float)
+    n = len(scores)
+    if n == 0: return 0.0, -1, []
+    if n < window: window = n
+    best = 0.0; best_start = -1; best_sents = []
+    for start in range(0, n - window + 1):
+        w = scores[start:start+window]
+        prop = float((w >= thr).mean())
+        if prop > best:
+            best = prop; best_start = start
+            best_sents = w.tolist()
+    return best, best_start, best_sents
+
+def max_ai_window_mean(scores, window=6):
+    """滑动窗口内句级概率的**平均分**最大值。用途：识别"AI密集段"。
+    实测：真人论文窗口平均最高~0.80；真实AI/混合AI段 ~0.95+。阈值 0.9 可分离。
+    返回 (max_window_mean, 窗口起始索引)。"""
+    scores = np.asarray(scores, dtype=float)
+    n = len(scores)
+    if n == 0: return 0.0, -1
+    if n < window: window = n
+    best = 0.0; best_start = -1
+    for start in range(0, n - window + 1):
+        m = float(scores[start:start+window].mean())
+        if m > best:
+            best = m; best_start = start
+    return best, best_start
