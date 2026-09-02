@@ -163,9 +163,10 @@ aigc-detector/
 - **效果**：干净标注后，真实完整论文误报极低（stat 0.03 / bert 0.06，判"基本人类"）。
 
 ### 生产模型（分语言）
-- `models/classifier.pkl`（中文统计流）：AI=4831 / human=11111（2.3:1），内部 AUC 0.9468，阈值≈0.380。
+- `models/classifier.pkl`（中文统计流）：AI=6790 / human=15616（2.3:1），内部 AUC 0.9009，阈值≈0.345（2026-09-02 增量重训）。
 - `models/classifier_en.pkl`（英文统计流）：AI=2349 / human=5402（2.3:1），内部 AUC 0.9540，阈值≈0.561。
 - 已热加载到服务（`/health` 可见 `stat` / `stat_en`）。服务按 `text_lang` 自动路由。
+- 增量（2026-09-02）：`ingest_new_reports.py` 扫描并入 **59 份报告、6570 条句级标注**，`train_unified.jsonl` 相应扩充，达阈值触发重训（AUC 0.901 / acc 0.839，阈值随数据自动校准）。
 
 ## 方向3：中文RoBERTa深度信号 + 双流融合（2026-09 完成）
 
