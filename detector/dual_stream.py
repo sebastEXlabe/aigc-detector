@@ -10,7 +10,7 @@
 import os, sys, json, re, pickle
 
 # 融合置信度：分歧时统计流权重
-TFIDF_BIAS_ON_DISAGREE = 0.7   # 统计流在分歧时的权重（0.6~0.8可调）
+TFIDF_BIAS_ON_DISAGREE = 0.35  # 实测(真实CNKI+AIGC)最优：深流增强后分歧时给深流更多权重，CNKI误报0.072->0.054、AIGC检出0.982
 
 def load_bert(device="cuda"):
     import torch
