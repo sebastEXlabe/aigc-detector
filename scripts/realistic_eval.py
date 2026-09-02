@@ -63,7 +63,6 @@ def run_detector(text, stat, bm):
     ai_cnt = int((gated>=0.5).sum()); ai_rate = float((gated>=0.5).mean())
     if overall>=0.5: verdict="高度疑似AI生成"
     elif ai_island>=0.9: verdict="疑似AI（存在AI密集段）"
-    elif overall>=0.35: verdict="疑似AI（人工复核）"
     elif overall>=0.2: verdict="证据不足（少量AI痕迹）"
     else: verdict="基本人类撰写"
     return dict(overall=overall, verdict=verdict, ai_rate=ai_rate, ai_cnt=ai_cnt, island=ai_island)

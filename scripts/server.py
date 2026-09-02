@@ -279,7 +279,6 @@ def detect_pipeline(text, top_k=20):
     ai_island = ai_island_win >= 0.9
     if overall >= 0.5: state_l = "高度疑似AI生成"
     elif ai_island: state_l = "疑似AI（存在AI密集段，建议人工复核）"
-    elif overall >= 0.35: state_l = "疑似AI（建议人工复核）"
     elif overall >= 0.2: state_l = "证据不足（倾向人类，存在少量AI痕迹）"
     else: state_l = "基本人类撰写"
     hi = []
