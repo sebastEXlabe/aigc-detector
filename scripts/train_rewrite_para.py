@@ -15,13 +15,25 @@ from transformers import AutoTokenizer, AutoModelForCausalLM
 
 def zhh(t): return len(re.findall(r"[\u4e00-\u9fff]", t or ""))
 
+def ref_clean_ok(src, tgt):
+    """参考质量门槛：目标段落不得引入'序号漂移'或'明显中英混杂'。"""
+    if not src or not tgt: return False
+    def nummark(s): return len(re.findall(r"[（(]\s*[0-9一二三四五]+\s*[）)]|^\s*\d+[\.、]", s))
+    def enwords(s): return len(re.findall(r"[A-Za-z]{2,}", s))
+    if nummark(tgt) > 0 and nummark(src) == 0: return False  # 原无序号改后有
+    if enwords(tgt) > enwords(src) + 1: return False  # 目标英文词明显多
+    return True
+
 os.environ.setdefault("TOKENIZERS_PARALLELISM", "false")
 D = r"C:\Users\woshi\.dsh\aigc-detector\data"
 PARA_CORPUS = os.path.join(D, "rewrite_para_pairs.jsonl")
 OUT = r"C:\Users\woshi\.dsh\aigc-detector\models\qwen_rewrite_para"
 BASE = r"C:\Users\woshi\.dsh\aigc-detector\models\Qwen2.5-1.5B-Instruct"
 
-SYS = "你是论文降重助手，把下面这一段改写成更自然、更像人写的学术表达，保留原文全部信息和主旨，不要增删事实，不要改术语，只输出改写后的整段。"
+SYS = ("你是论文降重助手，把下面这一段改写成更自然、更像人写的学术表达。"
+       "硬性要求：保留原文全部信息与主旨，不增删事实，不改专业术语，"
+       "保持原文的序号结构（如①②、1.2、第一/其一等）不变，"
+       "中文术语保持中文、不要混入英文单词，只输出改写后的整段。")
 def build_prompt(para): return f"{SYS}\n原文段落：{para.strip()}\n改写："
 
 def make_dataset(pairs, tok, max_len):
@@ -69,7 +81,8 @@ def main():
 
     rows = [json.loads(l) for l in open(PARA_CORPUS, encoding="utf-8")]
     rows = [p for p in rows if zhh(p.get("src_para")) >= 30 and zhh(p.get("tgt_para")) >= 30]
-    print("[para] 段落配对:", len(rows), flush=True)
+    rows = [p for p in rows if ref_clean_ok(p.get("src_para"), p.get("tgt_para"))]
+    print("[para] 段落配对(净化后):", len(rows), flush=True)
     import random; random.shuffle(rows)
     n_eval = max(1, int(len(rows)*args.eval_split))
     ev, tr = rows[:n_eval], rows[n_eval:]

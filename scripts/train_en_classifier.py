@@ -47,7 +47,7 @@ def main():
     cal = CalibratedClassifierCV(clf, cv=3).fit(Xv, ytr)
     p = cal.predict_proba(vec.transform(Xte))[:, 1]
     auc = roc_auc_score(yte, p); f1 = f1_score(yte, (p > 0.5).astype(int)); acc = accuracy_score(yte, (p > 0.5).astype(int))
-    print(f"\n=== 英文分类器 ===", flush=True)
+    print(f"\n=== 英文分类器(clean char-ngram) ===", flush=True)
     print(f"AUC={auc:.3f} | F1={f1:.3f} | ACC={acc:.3f} | 训练={len(Xtr)} 测试={len(Xte)}", flush=True)
     outp = r"C:\Users\woshi\.dsh\aigc-detector\models\classifier_en.pkl"
     pickle.dump({"vec": vec, "model": cal, "threshold": 0.5, "acc": acc, "f1": f1,
